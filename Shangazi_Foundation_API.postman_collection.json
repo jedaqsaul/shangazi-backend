@@ -1,0 +1,348 @@
+{
+  "info": {
+    "name": "Shangazi Foundation API",
+    "description": "Complete API collection for the Shangazi Foundation Donation Platform.\n\nSetup:\n1. Set the `base_url` variable to your server URL (default: http://localhost:5000)\n2. Run 'Admin Login' first — the access_token is auto-saved to collection variables.\n3. All Admin routes will automatically use the saved token.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" },
+    { "key": "checkout_request_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/health",
+            "description": "Verify the server is running."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\"status\": \"ok\", \"service\": \"Shangazi Foundation API\"}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.collectionVariables.set('access_token', data.access_token);",
+                  "  pm.collectionVariables.set('refresh_token', data.refresh_token);",
+                  "  console.log('Tokens saved to collection variables');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@shangazifoundation.org\",\n  \"password\": \"ChangeThisPassword123!\"\n}"
+            },
+            "description": "Authenticate admin. Tokens are auto-saved to collection variables."
+          },
+          "response": [
+            {
+              "name": "200 Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Login successful.\",\n  \"data\": {\n    \"access_token\": \"eyJ...\",\n    \"refresh_token\": \"eyJ...\",\n    \"user\": {\n      \"id\": \"uuid-here\",\n      \"username\": \"superadmin\",\n      \"email\": \"admin@shangazifoundation.org\",\n      \"role\": \"super_admin\",\n      \"is_active\": true\n    }\n  }\n}"
+            },
+            {
+              "name": "401 Wrong Credentials",
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"AUTH_ERROR\",\n    \"message\": \"Invalid email or password.\"\n  }\n}"
+            },
+            {
+              "name": "400 Validation Error",
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"{'email': ['Not a valid email address.']}\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/auth/refresh",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{refresh_token}}" }
+            ],
+            "description": "Get a new access token using the refresh token."
+          },
+          "response": [
+            {
+              "name": "200 Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Token refreshed.\",\n  \"data\": {\n    \"access_token\": \"eyJ...\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/auth/logout",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ]
+          },
+          "response": [
+            {
+              "name": "200 Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Logged out successfully.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Donations (Public)",
+      "item": [
+        {
+          "name": "Initiate Donation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const id = pm.response.json().data.checkout_request_id;",
+                  "  pm.collectionVariables.set('checkout_request_id', id);",
+                  "  console.log('checkout_request_id saved:', id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/donations/initiate",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"donor_name\": \"Jane Mwangi\",\n  \"phone_number\": \"0712345678\",\n  \"amount\": 500\n}"
+            },
+            "description": "Trigger M-Pesa STK Push to donor's phone. checkout_request_id is auto-saved for polling."
+          },
+          "response": [
+            {
+              "name": "201 STK Push Sent",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Payment request sent to your phone.\",\n  \"data\": {\n    \"donation_id\": \"uuid-here\",\n    \"checkout_request_id\": \"ws_CO_123456789\",\n    \"message\": \"Payment request sent to your phone. Please enter your M-Pesa PIN.\"\n  }\n}"
+            },
+            {
+              "name": "400 Invalid Phone",
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"{'phone_number': ['Invalid phone number. Use format: 07XXXXXXXX or +2547XXXXXXXX']}\"\n  }\n}"
+            },
+            {
+              "name": "400 Amount Too Low",
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"{'amount': ['Minimum donation amount is KES 10.']}\"\n  }\n}"
+            },
+            {
+              "name": "502 Daraja Error",
+              "status": "Bad Gateway",
+              "code": 502,
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"PAYMENT_ERROR\",\n    \"message\": \"Payment service is temporarily unavailable. Please try again.\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Check Payment Status",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/donations/status/{{checkout_request_id}}",
+            "description": "Poll this endpoint after initiating STK Push. Frontend polls every 3 seconds until status != pending."
+          },
+          "response": [
+            {
+              "name": "200 Pending",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"donation_id\": \"uuid-here\",\n    \"payment_status\": \"pending\",\n    \"amount\": 500.0,\n    \"mpesa_receipt_number\": null,\n    \"message\": \"Waiting for payment confirmation. Please enter your M-Pesa PIN.\"\n  }\n}"
+            },
+            {
+              "name": "200 Completed",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"donation_id\": \"uuid-here\",\n    \"payment_status\": \"completed\",\n    \"amount\": 500.0,\n    \"mpesa_receipt_number\": \"RCT123ABC\",\n    \"message\": \"Thank you! Your donation was received successfully.\"\n  }\n}"
+            },
+            {
+              "name": "200 Failed",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"donation_id\": \"uuid-here\",\n    \"payment_status\": \"failed\",\n    \"amount\": 500.0,\n    \"mpesa_receipt_number\": null,\n    \"message\": \"Payment was not completed. Please try again.\"\n  }\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "code": 404,
+              "body": "{\n  \"success\": false,\n  \"error\": { \"code\": \"NOT_FOUND\", \"message\": \"Donation not found.\" }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Daraja",
+      "item": [
+        {
+          "name": "Simulate Successful Callback",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/daraja/callback",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Body\": {\n    \"stkCallback\": {\n      \"MerchantRequestID\": \"mrq_test_123\",\n      \"CheckoutRequestID\": \"{{checkout_request_id}}\",\n      \"ResultCode\": 0,\n      \"ResultDesc\": \"The service request is processed successfully.\",\n      \"CallbackMetadata\": {\n        \"Item\": [\n          { \"Name\": \"Amount\", \"Value\": 500 },\n          { \"Name\": \"MpesaReceiptNumber\", \"Value\": \"RCT9TEST001\" },\n          { \"Name\": \"TransactionDate\", \"Value\": 20241120143500 },\n          { \"Name\": \"PhoneNumber\", \"Value\": 254712345678 }\n        ]\n      }\n    }\n  }\n}"
+            },
+            "description": "Simulate a successful Daraja callback. Use during sandbox testing. In production this is called by Safaricom automatically."
+          },
+          "response": [
+            {
+              "name": "200 Accepted",
+              "code": 200,
+              "body": "{ \"ResultCode\": 0, \"ResultDesc\": \"Accepted\" }"
+            }
+          ]
+        },
+        {
+          "name": "Simulate Failed Callback (User Cancelled)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/daraja/callback",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Body\": {\n    \"stkCallback\": {\n      \"MerchantRequestID\": \"mrq_test_123\",\n      \"CheckoutRequestID\": \"{{checkout_request_id}}\",\n      \"ResultCode\": 1032,\n      \"ResultDesc\": \"Request cancelled by user.\"\n    }\n  }\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List Donations",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/donations?page=1&per_page=20",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "20" },
+                { "key": "status", "value": "completed", "disabled": true },
+                { "key": "search", "value": "Jane", "disabled": true },
+                { "key": "date_from", "value": "2024-01-01", "disabled": true },
+                { "key": "date_to", "value": "2024-12-31", "disabled": true }
+              ]
+            },
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "description": "Paginated donation list. Enable optional query params for filtering."
+          }
+        },
+        {
+          "name": "Get Single Donation",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/admin/donations/DONATION_UUID_HERE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ]
+          }
+        },
+        {
+          "name": "Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/admin/stats",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "description": "Aggregate stats for dashboard widgets."
+          },
+          "response": [
+            {
+              "name": "200 Success",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"total_donations\": 143,\n    \"completed_donations\": 128,\n    \"failed_donations\": 12,\n    \"pending_donations\": 3,\n    \"total_amount_collected\": 285750.00\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Export CSV Report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/export",
+              "query": [
+                { "key": "status", "value": "completed", "disabled": true }
+              ]
+            },
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "description": "Downloads a CSV file. In Postman, click 'Send and Download' to save the file."
+          }
+        },
+        {
+          "name": "View Audit Logs (Super Admin)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/admin/audit-logs?page=1&per_page=20",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "description": "Requires super_admin role."
+          }
+        },
+        {
+          "name": "Create Admin User (Super Admin)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/admin/users",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newadmin\",\n  \"email\": \"newadmin@shangazifoundation.org\",\n  \"password\": \"SecurePassword123!\",\n  \"role\": \"admin\"\n}"
+            },
+            "description": "Requires super_admin role."
+          }
+        }
+      ]
+    }
+  ]
+}
