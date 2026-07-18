@@ -25,4 +25,6 @@ class ProductionConfig(BaseConfig):
     # Strict rate limits for production
     RATELIMIT_DEFAULT = "200 per day;50 per hour"
 
-    DARAJA_ENV = "production"
+# app/config/production.py
+
+DARAJA_ENV = os.environ.get("DARAJA_ENV", "production")
