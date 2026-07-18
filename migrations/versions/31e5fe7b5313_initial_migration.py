@@ -1,8 +1,8 @@
-"""initial migration
+"""Initial migration
 
-Revision ID: acc08fcc1e7f
+Revision ID: 31e5fe7b5313
 Revises: 
-Create Date: 2026-06-25 22:18:54.102310
+Create Date: 2026-07-18 13:09:01.984922
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'acc08fcc1e7f'
+revision = '31e5fe7b5313'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -41,6 +41,60 @@ def upgrade():
         batch_op.create_index(batch_op.f('ix_donations_payment_status'), ['payment_status'], unique=False)
         batch_op.create_index(batch_op.f('ix_donations_phone_number'), ['phone_number'], unique=False)
 
+    op.create_table('gallery_images',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('title', sa.String(length=150), nullable=True),
+    sa.Column('category', sa.Enum('education', 'healthcare', 'feeding', 'shelter', 'community', 'events', 'general', name='gallery_category'), nullable=False),
+    sa.Column('cloudinary_url', sa.String(length=500), nullable=False),
+    sa.Column('cloudinary_public_id', sa.String(length=255), nullable=False),
+    sa.Column('display_order', sa.Integer(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('gallery_images', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_gallery_images_category'), ['category'], unique=False)
+        batch_op.create_index(batch_op.f('ix_gallery_images_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_gallery_images_display_order'), ['display_order'], unique=False)
+
+    op.create_table('impact_stories',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('name', sa.String(length=150), nullable=False),
+    sa.Column('role', sa.String(length=150), nullable=True),
+    sa.Column('quote', sa.Text(), nullable=False),
+    sa.Column('cloudinary_url', sa.String(length=500), nullable=True),
+    sa.Column('cloudinary_public_id', sa.String(length=255), nullable=True),
+    sa.Column('display_order', sa.Integer(), nullable=False),
+    sa.Column('is_published', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('impact_stories', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_impact_stories_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_impact_stories_display_order'), ['display_order'], unique=False)
+        batch_op.create_index(batch_op.f('ix_impact_stories_is_published'), ['is_published'], unique=False)
+
+    op.create_table('programs',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('title', sa.String(length=150), nullable=False),
+    sa.Column('description', sa.Text(), nullable=False),
+    sa.Column('icon', sa.String(length=50), nullable=False),
+    sa.Column('color', sa.String(length=20), nullable=False),
+    sa.Column('metrics', sa.JSON(), nullable=False),
+    sa.Column('cloudinary_url', sa.String(length=500), nullable=True),
+    sa.Column('cloudinary_public_id', sa.String(length=255), nullable=True),
+    sa.Column('display_order', sa.Integer(), nullable=False),
+    sa.Column('is_published', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('programs', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_programs_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_programs_display_order'), ['display_order'], unique=False)
+        batch_op.create_index(batch_op.f('ix_programs_is_published'), ['is_published'], unique=False)
+
     op.create_table('users',
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('username', sa.String(length=80), nullable=False),
@@ -49,6 +103,8 @@ def upgrade():
     sa.Column('role', sa.Enum('super_admin', 'admin', name='user_roles'), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('last_login', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('avatar_url', sa.String(length=500), nullable=True),
+    sa.Column('avatar_public_id', sa.String(length=255), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.PrimaryKeyConstraint('id')
@@ -90,6 +146,24 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_users_email'))
 
     op.drop_table('users')
+    with op.batch_alter_table('programs', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_programs_is_published'))
+        batch_op.drop_index(batch_op.f('ix_programs_display_order'))
+        batch_op.drop_index(batch_op.f('ix_programs_created_at'))
+
+    op.drop_table('programs')
+    with op.batch_alter_table('impact_stories', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_impact_stories_is_published'))
+        batch_op.drop_index(batch_op.f('ix_impact_stories_display_order'))
+        batch_op.drop_index(batch_op.f('ix_impact_stories_created_at'))
+
+    op.drop_table('impact_stories')
+    with op.batch_alter_table('gallery_images', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_gallery_images_display_order'))
+        batch_op.drop_index(batch_op.f('ix_gallery_images_created_at'))
+        batch_op.drop_index(batch_op.f('ix_gallery_images_category'))
+
+    op.drop_table('gallery_images')
     with op.batch_alter_table('donations', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_donations_phone_number'))
         batch_op.drop_index(batch_op.f('ix_donations_payment_status'))
